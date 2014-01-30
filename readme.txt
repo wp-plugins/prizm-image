@@ -1,13 +1,13 @@
 === Prizm Image ===
 Plugin Name: Prizm Image
-Version: 1.0
+Version: 2.0
 Author: Accusoft
 Contributors: Accusoft
 Author URI: http://www.accusoft.com
 Tags: images, image, attachments, attachment, jpeg, png, Prizm Image, smushit, performance
 Requires at least: 3.5
 Tested up to: 3.7
-Stable tag: 1.0
+Stable tag: 2.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,10 @@ This plugin integrates with the [Prizm Image](http://www.PrizmImage.com) API to 
 * Strip metadata from all JPEGs (except for copyrights)
 * Optimize PNGs
 
+= User Registration =
+
+You will need to [register for a Prizm Image account](http://www.prizmimage.com/Home/Login) in order to obtain a free License Key to use the plugin. This is a free account.
+
 = How does it work? =
 
 There are three ways you can optimize images using your customized settings:
@@ -38,6 +42,8 @@ There are three ways you can optimize images using your customized settings:
 
 Configure the plugin options in the Settings > Media tab as follows:
 
+* Prizm Image License Key
+  * Enter the License Key you have obtained by [registering Prizm Image](http://www.prizmimage.com/Home/Login)
 * Select quality of reduced images
   * Lower Quality - Smaller File Size
   * Balanced Quality and File Size (default)
@@ -69,12 +75,16 @@ Configure the plugin options in the Settings > Media tab as follows:
 == Installation ==
 
 1. Upload the Prizm Image plugin to your /wp-content/plugins/ directory.
-1. Activate the plugin through the Plugins menu in WordPress..
-1. Set automatic optimization options in Settings > Media.
+2. Activate the plugin through the Plugins menu in WordPress.
+3. Obtain and configure your License Key.
+4. Set automatic optimization options in Settings > Media.
 
 
 == Changelog ==
 
+= 2.0 =
+* Updated to use improved and faster Prizm Image API.
+* Requires user to register for a License Key in order to use the plugin.
 
 = 1.0 =
 * First edition

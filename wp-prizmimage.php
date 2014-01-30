@@ -4,14 +4,14 @@ Plugin Name: Prizm Image
 Plugin URI: http://wordpress.org/extend/plugins/wp-prizmimage/
 Description: Prizm Image can be used to significantly reduce the size of your image files, leading to improved performance. Files are reduced without any loss of visual quality.
 Author: Accusoft
-Version: 1.0
+Version: 2.0
 License: GPL2
 Author URI: http://www.accusoft.com/
 Textdomain: PrizmImage
 */
 
 /* 
-Copyright 2013 Accusoft Corporation
+Copyright 2013-2014 Accusoft Corporation
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License (Version 2 - GPLv2) as published by
@@ -50,11 +50,12 @@ class AccusoftImageService {
     /**
      * Constants
      */
-    define( 'IMAGE_SERVICE_BASE_URL',    'http://api.prizmimage.com:80/' );
-    define( 'IMAGE_SERVICE_UPLOAD_URL',   IMAGE_SERVICE_BASE_URL . 'V0/Document/%s' );
-    define( 'IMAGE_SERVICE_DOWNLOAD_URL', IMAGE_SERVICE_BASE_URL . 'V0/Document/%s' );
-    define( 'IMAGE_SERVICE_PROGRESS_URL', IMAGE_SERVICE_BASE_URL . 'V0/Progress/%s' );
-    define( 'IMAGE_SERVICE_COMPRESS_URL', IMAGE_SERVICE_BASE_URL . 'V0/ReduceSize/%s?qualityFactor=%s&removeMetadata=%s&jpegMode=%s' );   
+    define( 'IMAGE_SERVICE_BASE_URL',     'http://api.prizmimage.com:80/' );
+    define( 'IMAGE_SERVICE_POST_SYNC_URL', IMAGE_SERVICE_BASE_URL . '%s/reduce/%s?qualityFactor=%s&removeMetadata=%s&jpegMode=%s' );
+    define( 'IMAGE_SERVICE_UPLOAD_URL',    IMAGE_SERVICE_BASE_URL . 'V0/Document/%s' );
+    define( 'IMAGE_SERVICE_DOWNLOAD_URL',  IMAGE_SERVICE_BASE_URL . 'V0/Document/%s' );
+    define( 'IMAGE_SERVICE_PROGRESS_URL',  IMAGE_SERVICE_BASE_URL . 'V0/Progress/%s' );
+    define( 'IMAGE_SERVICE_COMPRESS_URL',  IMAGE_SERVICE_BASE_URL . 'V0/ReduceSize/%s?qualityFactor=%s&removeMetadata=%s&jpegMode=%s' );   
 
     // The domain is used for text translation.
     define( 'WP_IMAGE_SERVICE_DOMAIN', 'PrizmImage' );
@@ -74,9 +75,9 @@ class AccusoftImageService {
     define('WP_IMAGE_SERVICE_MAX_STATUS_ATTEMPTS', 25);
     
     // Three quality settings are exposed as user configurable options.
-    define('WP_IMAGE_SERVICE_QUALITY_LOW', 30);
-    define('WP_IMAGE_SERVICE_QUALITY_MED', 14);
-    define('WP_IMAGE_SERVICE_QUALITY_HIGH', 5);
+    define('WP_IMAGE_SERVICE_QUALITY_LOW', 36);
+    define('WP_IMAGE_SERVICE_QUALITY_MED', 26);
+    define('WP_IMAGE_SERVICE_QUALITY_HIGH', 16);
     
     // JPEG Mode settings exposed as user configurable options.
     define('WP_IMAGE_SERVICE_JPEG_MODE_SEQUENTIAL',  1); 
@@ -84,10 +85,11 @@ class AccusoftImageService {
     define('WP_IMAGE_SERVICE_JPEG_MODE_PRESERVE',    3);
 
     // The values for these are retrieved from the specified settings fields.
+    define( 'WP_IMAGE_SERVICE_USER_ID', get_option( 'wp_image_service_service_user_id', '') );
     define( 'WP_IMAGE_SERVICE_AUTO', intval( get_option( 'wp_image_service_service_auto', 0) ) );
     define( 'WP_IMAGE_SERVICE_TIMEOUT', intval( get_option( 'wp_image_service_service_timeout', 120) ) );
     define( 'WP_IMAGE_SERVICE_DEBUG', get_option( 'wp_image_service_service_debug', '') );
-    define( 'WP_IMAGE_SERVICE_QUALITY', get_option( 'wp_image_service_service_quality', WP_IMAGE_SERVICE_QUALITY_MED) );  
+    define( 'WP_IMAGE_SERVICE_QUALITY', get_option( 'wp_image_service_service_quality', WP_IMAGE_SERVICE_QUALITY_HIGH) );  
     define( 'WP_IMAGE_SERVICE_REMOVE_METADATA', get_option( 'wp_image_service_service_metadata', 'on'));
     define( 'WP_IMAGE_SERVICE_JPEG_MODE', get_option( 'wp_image_service_service_jpeg_mode', WP_IMAGE_SERVICE_JPEG_MODE_PRESERVE));
     
@@ -133,6 +135,9 @@ class AccusoftImageService {
   function register_settings( ) {
     add_settings_section( 'wp_image_service_settings', 'WP Prizm Image', array( &$this, 'settings_cb' ), 'media' );
 
+    add_settings_field( 'wp_image_service_service_user_id', __( 'Enter your Prizm Image License Key. In order to use Prizm Image, you need to register for a free License Key. You can get your License Key here: <a href="http://www.prizmimage.com/Home/Login" target="_blank">http://www.prizmimage.com/Home/Login</a>', WP_IMAGE_SERVICE_DOMAIN ), 
+      array( &$this, 'render_user_id_opts' ), 'media', 'wp_image_service_settings' );
+    
     add_settings_field( 'wp_image_service_service_quality', __( 'Select quality of reduced images', WP_IMAGE_SERVICE_DOMAIN ), 
       array( &$this, 'render_quality_opts' ),  'media', 'wp_image_service_settings' );
       
@@ -151,7 +156,7 @@ class AccusoftImageService {
     add_settings_field( 'wp_image_service_service_debug', __( 'Enable debug processing', WP_IMAGE_SERVICE_DOMAIN ), 
       array( &$this, 'render_debug_opts' ), 'media', 'wp_image_service_settings' );
       
-
+    register_setting( 'media', 'wp_image_service_service_user_id' );
     register_setting( 'media', 'wp_image_service_service_quality' );
     register_setting( 'media', 'wp_image_service_service_metadata' );
     register_setting( 'media', 'wp_image_service_service_jpeg_mode' );
@@ -166,6 +171,11 @@ class AccusoftImageService {
   /**
    *These functions handle setting up the screen to set various user configurable options.
    */
+   function render_user_id_opts( $key ) {
+    $key = 'wp_image_service_service_user_id';
+    printf( "<input type='text' name='%1\$s' id='%1\$s' value='%2\%s'>",  esc_attr( $key ), get_option( $key, ' ' ) );
+  }
+  
   function render_jpeg_mode_opts( ) {
     $key = 'wp_image_service_service_jpeg_mode';
     $val = intval( get_option( $key, WP_IMAGE_SERVICE_JPEG_MODE_PRESERVE ) );
@@ -178,7 +188,7 @@ class AccusoftImageService {
   
   function render_quality_opts( ) {
     $key = 'wp_image_service_service_quality';
-    $val = intval( get_option( $key, WP_IMAGE_SERVICE_QUALITY_MED ) );
+    $val = intval( get_option( $key, WP_IMAGE_SERVICE_QUALITY_HIGH ) );
     printf( "<select name='%1\$s' id='%1\$s'>",  esc_attr( $key ) );
     echo '<option value=' . WP_IMAGE_SERVICE_QUALITY_LOW . ' ' . selected( WP_IMAGE_SERVICE_QUALITY_LOW, $val ) . '>'. __( 'Lower Quality - Smaller File Size', WP_IMAGE_SERVICE_DOMAIN ) . '</option>';
     echo '<option value=' . WP_IMAGE_SERVICE_QUALITY_MED . ' ' . selected( WP_IMAGE_SERVICE_QUALITY_MED, $val ) . '>'. __( 'Balanced Quality and File Size', WP_IMAGE_SERVICE_DOMAIN ) . '</option>';
@@ -307,6 +317,10 @@ class AccusoftImageService {
           $meta = $this->resize_from_meta_data( $original_meta, $attachment->ID, false );
           printf( "&mdash; [original] %d x %d: ", intval($meta['width']), intval($meta['height']) );
 
+          // If the file was previously processed and the same message is returned from processing, and that message
+          // is not an error message, and that message is not a message that indicates it can't be processed (contain html '<a'),
+          // and the message does not indicate the image can't be reduced ('No savings'), then display a message that says the
+          // file is already reduced.
           if ((isset( $original_meta['wp_image_service'] )) 
            && ( $original_meta['wp_image_service'] == $meta['wp_image_service']) 
            && (stripos( $meta['wp_image_service'], 'PrizmImage error' ) === false ) ) {
@@ -417,103 +431,18 @@ class AccusoftImageService {
     }
 
     $in_file_size = filesize( $file_path );
-    
-    // Upload the file to the image service
-    $data = $this->_post( $file_path  );
-    if ( false === $data || !isset($data) ){
-      if (WP_IMAGE_SERVICE_DEBUG) {   
-        echo "DEBUG: invalid/empty data returned from _post: data<pre>"; print_r($data); echo "</pre>";
-      }
-      return __( 'ERROR: posting file to Prizm Image', WP_IMAGE_SERVICE_DOMAIN );
-    }
-    
-    // Parse the JSON response
-    $data = $this->json_decode_message($data);
-    if (WP_IMAGE_SERVICE_DEBUG) {   
-      echo "DEBUG: return from _post: data<pre>"; print_r($data); echo "</pre>";
-    }
-    // Check to see if the API used in this plugin has been deprecated.
-    if ($data == WP_IMAGE_SERVICE_DEPRECATED_API_CODE) {
-      return __('Please upgrade to latest version of the Prizm Image plugin', WP_IMAGE_SERVICE_DOMAIN );
-    }
-             
-    // The response contains a single data item which is the document id assigned to the uploaded file
-    $source_doc_id = $data;
-    
-    // Call _Compress($document_id) to compress the file
-    $data = $this->_compress( $source_doc_id  );
-    if ( false === $data || !isset($data) ) {
-      return __( 'ERROR: compressing file with Prizm Image', WP_IMAGE_SERVICE_DOMAIN );
-    }
-    
-    // Parse the JSON response
-    $data = $this->json_decode_message($data);
-    if (WP_IMAGE_SERVICE_DEBUG) { 
-        echo "DEBUG: returned from _compress data<pre>"; print_r($data); echo "</pre>";
-    }
-    // Check to see if the API used in this plugin has been deprecated.
-    if ($data == WP_IMAGE_SERVICE_DEPRECATED_API_CODE) {
-      return __('Please upgrade to latest version of the Prizm Image plugin', WP_IMAGE_SERVICE_DOMAIN );
-    }
-
-    // The response contains a single data item which is the document id assigned to the reduced file.
-    $dest_doc_id = $data;
-    
-    // Check the progress continually until the reduce operation completes, or we try a maximum number of times.
-    $resize_complete = false;
-    $num_attempts = 1;
-    while ( $resize_complete == false && $num_attempts <= WP_IMAGE_SERVICE_MAX_STATUS_ATTEMPTS) {
-      $data = $this->_check_progress( $dest_doc_id  );
-      if ( false === $data || !isset($data) ) {
-        return __( 'ERROR: Getting Progress from Prizm Image', WP_IMAGE_SERVICE_DOMAIN );
-      }
-
-      $data = $this->json_decode_message($data);
-      if (WP_IMAGE_SERVICE_DEBUG) {   
-        echo "DEBUG: JSON data returned from _check_progress: data<pre>"; print_r($data); echo "</pre>";
-      }
-      // Check to see if the API used in this plugin has been deprecated.
-      if ($data == WP_IMAGE_SERVICE_DEPRECATED_API_CODE) {
-        return __('Please upgrade to latest version of the Prizm Image plugin', WP_IMAGE_SERVICE_DOMAIN );
-      }
-      
-      // Status Codes:  0 = Not Started, 1 = In Progress, 2 = Completed, 3 = Error, 4 = Progress Not Found,
-      // Any other code is unexpected.
-      if ( $data->Status == 2 ||  $data->Status == 3 ||  $data->Status > 4 ) {
-        $resize_complete = true;
-       }
-       else {
-        // Status is Not Started, In Progress, or Progress can't be found, so retry
-        $num_attempts++;
-        sleep(1);
-       }
-     }
-        
-    // Check for errors in the returned status.  
-    // TBD - we need to investigate error handling and make this better.  What if not reduced, but did remove meta-data, etc.
-    // Maybe compare before/after size to determine if no savings?
-    if ( $data->Status == 0 ||  $data->Status == 1 ) {
-      return __('Prizm Image operation did not complete', WP_IMAGE_SERVICE_DOMAIN );
-    }
-    if ( $data->Status == 3 ||  $data->Status >= 4 ) {
-      return __('Bad response from Prizm Image', WP_IMAGE_SERVICE_DOMAIN );
-    }
-    if ( stripos( $data->Message, 'unable' ) !== false) {
-      return __('No savings', WP_IMAGE_SERVICE_DOMAIN );
-     } 
-    if ( stripos( $data->Message, 'unsupported' ) !== false) {
-      return __('Unsupported file type', WP_IMAGE_SERVICE_DOMAIN );
-    } 
-    
-    // Download the reduced file from Prizm Image
-    $temp_file = $this->_download($dest_doc_id);
+       
+    // Upload the file using the synchronous operation.  This will upload, reduce, and return the reduced file
+    // in a single operation.
+    $temp_file = $this->_post_synchronous( $file_path  ); 
+       
     if ( is_wp_error( $temp_file ) ) {
       @unlink($temp_file);
-      return sprintf( __("Error downloading file (%s)", WP_IMAGE_SERVICE_DOMAIN ), $temp_file->get_error_message());
+      return sprintf( __("Error: %s", WP_IMAGE_SERVICE_DOMAIN ), $temp_file->get_error_message());
     }
 
     if (!file_exists($temp_file)) {
-      return sprintf( __("Unable to locate Prizm Image downloaded file (%s)", WP_IMAGE_SERVICE_DOMAIN ), $temp_file);
+      return sprintf( __("Unable to locate file reduced by Prizm Image (%s)", WP_IMAGE_SERVICE_DOMAIN ), $temp_file);
     }
     
     // Replace the original file with the reduced file. 
@@ -585,6 +514,12 @@ class AccusoftImageService {
       return $meta;
     }
 
+    // Make sure a License Key has been configured.
+    if ( empty($WP_IMAGE_SERVICE_USER_ID) ) {
+      $meta['wp_image_service']  = __( "You have not configured a Prizm Image License Key.  Please enter your License Key in the Media Settings.", WP_IMAGE_SERVICE_DOMAIN );
+      return $meta;
+    }
+    
     $attachment_file_path = get_attached_file($ID);
     if (WP_IMAGE_SERVICE_DEBUG) {
       echo "DEBUG: attachment_file_path=[". $attachment_file_path ."]<br />";
@@ -622,79 +557,16 @@ class AccusoftImageService {
   }
 
 /**
-   * Post (upload) an image to the image service.
+   * Post an image to the image service synchronously.  The image will be uploaded, processed, and returned.
    *
-   * @param   string          $file_path    full path of the file to send to the image service
-   * @return  string|boolean  Returns the JSON response on success or else false
+   * @param   string             full path of the file to send to the image service
+   * @return  filename|WP_Error  Returns the reduced file on success or else a WP Error
    */
-  function _post( $file_path  ) {
+  function _post_synchronous( $file_path  ) {
     if (WP_IMAGE_SERVICE_DEBUG) {   
-      echo "DEBUG: entered _post: $file_path <br />";
+      echo "DEBUG: entered _post_synchronous: $file_path <br />";
     }
-
-    // Our API requires that the file name be appended to the request.
-    $req = sprintf( IMAGE_SERVICE_UPLOAD_URL,basename($file_path));
     
-    // Read the input file.  
-    // The function file_get_contents reads the entire file into a string.  It is safe to use on binary files.
-    $file_contents = file_get_contents($file_path);
-    
-    if ($file_contents === FALSE) {
-      $data = false;
-      if (WP_IMAGE_SERVICE_DEBUG) {   
-        echo "Error reading file to be reduced <br />";
-      }
-    } else {
- 
-      if (WP_IMAGE_SERVICE_DEBUG) {   
-        echo "DEBUG: Calling wp_remote_post: [". $req."]<br />";
-      }
-      if ( function_exists( 'wp_remote_post' ) ) {
-        $response = wp_remote_post( $req, array('user-agent' => WP_IMAGE_SERVICE_UA,
-                                                'headers' => array( 'Content-Type' => 'application/octet-stream' ),
-                                                'body' => $file_contents,
-                                                'timeout' => WP_IMAGE_SERVICE_TIMEOUT ) );
-        if ( !$response || is_wp_error( $response ) ) {
-          $data = false;
-          
-          if (WP_IMAGE_SERVICE_DEBUG) {   
-            echo "response from post is null or error: <br />";
-            print_r($response);
-            echo "<br />";
-          }
-        } else {
-          if (WP_IMAGE_SERVICE_DEBUG) {   
-            echo "response from post is ok: <br />";
-            print_r($response);
-            echo "<br />";
-           }
-          $data = wp_remote_retrieve_body( $response );
- 
-          // The server has an idle timer that shuts down the service when it is idle for a specified amount of time.
-          // When the server wakes up due to an incoming request, the response contains additional data in the body of
-          // the response message.  This additional data is HTML data that needs to be stripped out of the response.
-          $position = strpos( $data, '<!DOCTYPE' );
-          if ( $position !== false ) {
-            $data = substr( $data, 0, $position);
-          }
-        }
-      } else {
-          $data = false;
-          wp_die( __('WP Prizm Image requires WordPress 2.8 or greater', WP_IMAGE_SERVICE_DOMAIN) );
-      }
-    }
-
-    return $data;
-  }
-  
-  /**
-   * Compress an image with the image service.
-   *
-   * @param   string          $file_id     ID of the file to compress
-   * @return  string|boolean  Returns the JSON response on success or else false
-   */
-  function _compress( $file_id  ) {
-  
     // Is the remove metadata user option set?
     if ( WP_IMAGE_SERVICE_REMOVE_METADATA == 'on' ) {
       $remove_metadata = 'true';
@@ -715,99 +587,94 @@ class AccusoftImageService {
         break;
     }
 
-    // Format the request message.
-    $req = sprintf( IMAGE_SERVICE_COMPRESS_URL, $file_id, strval(WP_IMAGE_SERVICE_QUALITY), $remove_metadata, $jpeg_mode);
-    
-    $data = false;
-    if (WP_IMAGE_SERVICE_DEBUG) {   
-      echo "DEBUG: Calling wp_remote_get to compress file: [". $req."]<br />";
-    }
-    if ( function_exists( 'wp_remote_get' ) ) {
-      $response = wp_remote_get( $req, array( 'user-agent' => WP_IMAGE_SERVICE_UA,
-                                               'timeout' => WP_IMAGE_SERVICE_TIMEOUT ) );
-      if ( !$response || is_wp_error( $response ) ) {
-        $data = false;
-      } else {
-        $data = wp_remote_retrieve_body( $response );
-      }
-    } else {
-      wp_die( __('WP Prizm Image requires WordPress 2.8 or greater', WP_IMAGE_SERVICE_DOMAIN) );
-    }
-    return $data;
-  }
-  
-    /**
-   * Download a compressed image from the image service.
-   *
-   * @param   string             $file_id     ID of the compressed file
-   * @return  filename|WP_Error  Returns the JSON response on success or else a WP Error
-   */
-  function _download( $file_id  ) {
-    $req = sprintf( IMAGE_SERVICE_DOWNLOAD_URL, $file_id);
+    // Our API requires that the user id be prepended to the request and the file name be appended to the request, followed by options.
+    $req = sprintf(IMAGE_SERVICE_POST_SYNC_URL, WP_IMAGE_SERVICE_USER_ID, basename($file_path), 
+                   strval(WP_IMAGE_SERVICE_QUALITY), $remove_metadata, $jpeg_mode);
     
     // Create a temp file to contain the reduced file retrieved from the web service.
-    $tmpfname = wp_tempnam($file_id );
+    $tmpfname = wp_tempnam(basename($file_path));
     if ( ! $tmpfname ) {
-      return new WP_Error('http_no_file', __('Could not create Temporary file.'));
+      return new WP_Error('http_no_file', __('Could not create temporary file to contain the reduced file.'));
     }
-
+   
+    // Read the input file.  
+    // The function file_get_contents reads the entire file into a string.  It is safe to use on binary files.
+    $file_contents = file_get_contents($file_path);
+    
+    if ($file_contents === FALSE) {
+      if (WP_IMAGE_SERVICE_DEBUG) {   
+        echo "Error reading file to be reduced <br />";
+      }
+      unlink( $tmpfname );
+      return new WP_Error('http_read_error', __('Could not read the file to be reduced.'));
+    } 
+ 
     if (WP_IMAGE_SERVICE_DEBUG) {   
-      echo "DEBUG: Calling wp_remote_get to download file: [". $req."]<br />";
+      echo "DEBUG: Calling wp_remote_post: [". $req."]<br />";
     }
-
-    if ( function_exists( 'wp_remote_get' ) ) {                                         
-      $response = wp_remote_get( $req, array( 'user-agent' => WP_IMAGE_SERVICE_UA,
-                                               'timeout'    => WP_IMAGE_SERVICE_TIMEOUT,  
+    if ( function_exists( 'wp_remote_post' ) ) {
+      $response = wp_remote_post( $req, array('user-agent' => WP_IMAGE_SERVICE_UA,
+                                               'headers'    => array( 'Content-Type' => 'application/octet-stream' ),
+                                               'body'       => $file_contents,
+                                               'timeout'    => WP_IMAGE_SERVICE_TIMEOUT,
                                                'stream'     => true, 
-                                               'filename'   => $tmpfname ) );
-                                               
+                                               'filename'   => $tmpfname
+                                               ));
+                                                
       if ( !$response || is_wp_error( $response ) ) {
         unlink( $tmpfname );
-        $tmpfname = $response;
+        if (!$response) {
+          $tmpfname = new WP_Error( 'http_no_response', 'No response received from http_post' );
+        } else {
+          $tmpfname = $response;
+        }
+        if (WP_IMAGE_SERVICE_DEBUG) {   
+          echo "DEBUG: wp_remote_post returned error: <pre>"; print_r($response); echo "</pre>";
+        }
       } else {
-          if ( 200 != wp_remote_retrieve_response_code( $response ) ){
-            unlink( $tmpfname );
-            $tmpfname =  new WP_Error( 'http_404', trim( wp_remote_retrieve_response_message( $response ) ) );
-          }
-      }
-    } else {
-      unlink( $tmpfname );
-      wp_die( __('WP Prizm Image requires WordPress 2.8 or greater', WP_IMAGE_SERVICE_DOMAIN) );
-    }
+        //  HTTP Status Code 200 indicates success.  Any other status code is a failure.
+        $statusCode = wp_remote_retrieve_response_code( $response );
+        if ( 200 != $statusCode ){
 
+          // The body of the message will contain JSON content with additional error information. Since the data returned from
+          // the post has been written to a file, get the contents of the file.  Then extract the JSON content error message from the body.
+          $responseBody = file_get_contents($tmpfname);
+          $responseData = $this->json_decode_message($responseBody);
+          if ($responseData) {
+            $message = $responseData->message;  
+          } else {
+            $message = 'Server returned status code ' . strval($statusCode);
+          }
+          unlink( $tmpfname );
+          $tmpfname =  new WP_Error( $statusCode, trim( $message ) );
+          if (WP_IMAGE_SERVICE_DEBUG) {   
+            echo "DEBUG: Response returned from sync post: <pre>"; print_r($response); echo "</pre>";
+            echo "DEBUG: Body returned from sync post: <pre>"; print_r($responseBody); echo "</pre>";
+            echo "DEBUG: JSON data returned from sync post: <pre>"; echo "Code $statusCode Data: " ;  print_r($responseData); echo "</pre>";
+          }
+        }
+      }
+ 
+      // The following appears to no longer be required.  It's left here just in case.
+      //
+      // The server has an idle timer that shuts down the service when it is idle for a specified amount of time.
+      // When the server wakes up due to an incoming request, the response contains additional data in the body of
+      // the response message.  This additional data is HTML data that needs to be stripped out of the response.
+      //$data = wp_remote_retrieve_body( $response );
+      //$position = strpos( $data, '<!DOCTYPE' );
+      //if ( $position !== false ) {
+      //  $data = substr( $data, 0, $position);
+      //}
+
+    } else {  //function wp_remote_post does not exist
+        unlink( $tmpfname );
+        wp_die( __('WP Prizm Image requires WordPress 2.8 or greater', WP_IMAGE_SERVICE_DOMAIN) );
+    }
+ 
     return $tmpfname;
   }
   
-  
-  /**
-   * Check the progress of an image service operation.
-   *
-   * @param   string          $file_id    ID of the file to be checked
-   * @return  string|boolean  Returns the JSON response on success or else false
-   */
-  function _check_progress( $file_id  ) {
-    $req = sprintf( IMAGE_SERVICE_PROGRESS_URL, $file_id);
-    
-    $data = false;
-    if (WP_IMAGE_SERVICE_DEBUG) {   
-      echo "DEBUG: Calling wp_remote_get to check progress [". $req."]<br />";
-    }
-    if ( function_exists( 'wp_remote_get' ) ) {
-      $response = wp_remote_get( $req, array( 'user-agent' => WP_IMAGE_SERVICE_UA,
-                                               'timeout' => WP_IMAGE_SERVICE_TIMEOUT ) );
-      if ( !$response || is_wp_error( $response ) ) {
-        $data = false;
-      } else {
-        $data = wp_remote_retrieve_body( $response );
-      }
-    } else {
-      wp_die( __('WP Image Service requires WordPress 2.8 or greater', WP_IMAGE_SERVICE_DOMAIN) );
-    }
-
-    return $data;
-  }
-  
-    /**
+   /**
    * Return the filesize in a humanly readable format.
    * Taken from http://www.php.net/manual/en/function.filesize.php#91477
    */
