@@ -1,13 +1,13 @@
 === Prizm Image ===
 Plugin Name: Prizm Image
-Version: 2.0
+Version: 2.1
 Author: Accusoft
 Contributors: Accusoft
 Author URI: http://www.accusoft.com
 Tags: images, image, attachments, attachment, jpeg, png, Prizm Image, smushit, performance
 Requires at least: 3.5
 Tested up to: 3.7
-Stable tag: 2.0
+Stable tag: 2.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ Configure the plugin options in the Settings > Media tab as follows:
 
 
 == Changelog ==
+
+= 2.1 =
+* Fix checking of License Key
 
 = 2.0 =
 * Updated to use improved and faster Prizm Image API.
