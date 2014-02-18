@@ -4,7 +4,7 @@ Plugin Name: Prizm Image
 Plugin URI: http://wordpress.org/extend/plugins/wp-prizmimage/
 Description: Prizm Image can be used to significantly reduce the size of your image files, leading to improved performance. Files are reduced without any loss of visual quality.
 Author: Accusoft
-Version: 2.1
+Version: 2.2
 License: GPL2
 Author URI: http://www.accusoft.com/
 Textdomain: PrizmImage
@@ -27,8 +27,6 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-
-
 if ( !function_exists( 'download_url' ) ) {
   require_once( ABSPATH . 'wp-admin/includes/file.php' );
 }
@@ -37,8 +35,8 @@ if ( !class_exists( 'AccusoftImageService' ) ) {
 
 class AccusoftImageService {
 
-  var $version = "1.0";
-
+  var $version = "2.2";
+  
   /**
      * Constructor
      */
@@ -75,8 +73,8 @@ class AccusoftImageService {
     define('WP_IMAGE_SERVICE_MAX_STATUS_ATTEMPTS', 25);
     
     // Three quality settings are exposed as user configurable options.
-    define('WP_IMAGE_SERVICE_QUALITY_LOW', 36);
-    define('WP_IMAGE_SERVICE_QUALITY_MED', 26);
+    define('WP_IMAGE_SERVICE_QUALITY_LOW', 28);
+    define('WP_IMAGE_SERVICE_QUALITY_MED', 22);
     define('WP_IMAGE_SERVICE_QUALITY_HIGH', 16);
     
     // JPEG Mode settings exposed as user configurable options.
@@ -112,6 +110,11 @@ class AccusoftImageService {
     define('WP_IMAGE_SERVICE_AUTO_OK', 0);
     define('WP_IMAGE_SERVICE_AUTO_NEVER', -1);
     
+    // Create a place to store the cumulative amount of space that has been saved.
+    // This is not a user option, but this is a convenient way to store small bits of data.
+    // We will store the savings in bytes.  It will be displayed in the most readable format (KB, MB, etc.)
+    add_option('WP_IMAGE_SERVICE_SPACE_SAVED', 0);
+    
     /**
      * Hooks
      */
@@ -133,6 +136,14 @@ class AccusoftImageService {
    * Plugin setting functions
    */
   function register_settings( ) {
+    register_setting( 'media', 'wp_image_service_service_user_id', array( &$this, 'validate_user_id' ) );  //Note that a validation callback is provided.
+    register_setting( 'media', 'wp_image_service_service_quality' );
+    register_setting( 'media', 'wp_image_service_service_metadata' );
+    register_setting( 'media', 'wp_image_service_service_jpeg_mode' );
+    register_setting( 'media', 'wp_image_service_service_auto' );
+    register_setting( 'media', 'wp_image_service_service_timeout' );
+    register_setting( 'media', 'wp_image_service_service_debug' );
+    
     add_settings_section( 'wp_image_service_settings', 'WP Prizm Image', array( &$this, 'settings_cb' ), 'media' );
 
     add_settings_field( 'wp_image_service_service_user_id', __( 'Enter your Prizm Image License Key. In order to use Prizm Image, you need to register for a free License Key. You can get your License Key here: <a href="http://www.prizmimage.com/Home/Login" target="_blank">http://www.prizmimage.com/Home/Login</a>', WP_IMAGE_SERVICE_DOMAIN ), 
@@ -156,16 +167,22 @@ class AccusoftImageService {
     add_settings_field( 'wp_image_service_service_debug', __( 'Enable debug processing', WP_IMAGE_SERVICE_DOMAIN ), 
       array( &$this, 'render_debug_opts' ), 'media', 'wp_image_service_settings' );
       
-    register_setting( 'media', 'wp_image_service_service_user_id' );
-    register_setting( 'media', 'wp_image_service_service_quality' );
-    register_setting( 'media', 'wp_image_service_service_metadata' );
-    register_setting( 'media', 'wp_image_service_service_jpeg_mode' );
-    register_setting( 'media', 'wp_image_service_service_auto' );
-    register_setting( 'media', 'wp_image_service_service_timeout' );
-    register_setting( 'media', 'wp_image_service_service_debug' );
+
   }
 
   function settings_cb( ) {
+  }
+  
+  // This function checks if the user has entered a License Key.  If not, a message is displayed.
+  function validate_user_id($input) {
+    if ($input == null) {
+         add_settings_error(
+            'wp_image_service_service_user_id',  //Title of the setting
+            esc_attr( 'settings_updated' ),      //Code to identify the error
+            __( 'Settings saved. <br />Prizm Image License Key not entered.  You will need a key to use Prizm Image.', WP_IMAGE_SERVICE_DOMAIN ),
+            'error');                            //Type of message
+    }
+    return $input;
   }
   
   /**
@@ -273,7 +290,8 @@ class AccusoftImageService {
     }
     ?>
     <div class="wrap"> 
-      <div id="icon-upload" class="icon32"><br /></div><h2><?php _e( 'Bulk Prizm Image', WP_IMAGE_SERVICE_DOMAIN ) ?></h2>
+      <div id="icon-upload" class="icon32"><br /></div><h2><?php _e( 'Prizm Image', WP_IMAGE_SERVICE_DOMAIN ) ?></h2>
+      
     <?php 
 
     if ( sizeof($attachments) < 1 ) {
@@ -311,10 +329,20 @@ class AccusoftImageService {
         @ob_implicit_flush( true );
         @ob_end_flush();
         foreach( $attachments as $attachment ) {
+         if ($this->file_is_handled_by_image_service($attachment->ID)) { 
           printf( __("<p>Processing <strong>%s</strong>&hellip;<br />", WP_IMAGE_SERVICE_DOMAIN), esc_html( $attachment->post_name ) );
           $original_meta = wp_get_attachment_metadata( $attachment->ID, true );
           
-          $meta = $this->resize_from_meta_data( $original_meta, $attachment->ID, false );
+          // If this is a manual request to reduce a single image, force the reduce operation to take place.  
+          // For bulk operations, we do not force reduce to happen if the image has already been reduced. 
+          // One reason to allow reduce to be rerun for manual operations is to support changing JPEG mode for images
+          // that have already been reduced.
+          if (!empty( $_GET['manualrequest']  )) {
+            $forceResize = true;
+          } else {
+            $forceResize = false;
+          }
+          $meta = $this->resize_from_meta_data( $original_meta, $attachment->ID, $forceResize );
           printf( "&mdash; [original] %d x %d: ", intval($meta['width']), intval($meta['height']) );
 
           // If the file was previously processed and the same message is returned from processing, and that message
@@ -348,6 +376,9 @@ class AccusoftImageService {
           echo "</p>";
 
           wp_update_attachment_metadata( $attachment->ID, $meta );
+          } else {
+            printf( __("<p>File type not handled by Prizm Image: <strong>%s</strong><br /> </p>", WP_IMAGE_SERVICE_DOMAIN), esc_html( $attachment->post_name ) );
+          }
 
           // The following code is supposed to flush the output buffer so that the browswer is updated.
           //
@@ -364,7 +395,15 @@ class AccusoftImageService {
           @ob_flush();
           flush();
         }
+        $bytesSaved = get_option('WP_IMAGE_SERVICE_SPACE_SAVED');
+        $savingsStr = $this->format_bytes( $bytesSaved, 1 );
         _e('<hr /></p>Prizm Image finished processing.</p>', WP_IMAGE_SERVICE_DOMAIN);
+        _e('</p>Cumulative Total Savings: '.$savingsStr .'</p>', WP_IMAGE_SERVICE_DOMAIN);
+        
+        //Determine if there should be a link to go back to the previous page.
+        // Go back a single image was selected from the Media page to reduce.  In this case 'goback' will be set.
+        $text_goback = ( ! empty( $_GET['goback'] ) ) ? sprintf( __( '<strong>To go back to the previous page, <a href="%s">click here</a>.</strong>', 'regenerate-thumbnails' ), 'javascript:history.go(-1)' ) : '';
+         _e('</p>' .$text_goback .'</p>', WP_IMAGE_SERVICE_DOMAIN);
       }
     }
     ?>
@@ -384,21 +423,34 @@ class AccusoftImageService {
     if ( !isset( $_GET['attachment_ID'] ) ) {
       wp_die( __( 'No attachment ID was provided.', WP_IMAGE_SERVICE_DOMAIN ) );
     }
-
-    $attachment_ID = intval( $_GET['attachment_ID'] );
     
-    $original_meta = wp_get_attachment_metadata( $attachment_ID );
-    
-    $new_meta = $this->resize_from_meta_data( $original_meta, $attachment_ID );
-    
-    if (WP_IMAGE_SERVICE_DEBUG) {   
-        echo "DEBUG: new_meta returned from resize_from_meta: data<pre>"; print_r($new_meta); echo "</pre>";
-     }
-    
-    wp_update_attachment_metadata( $attachment_ID, $new_meta ); 
-
-    wp_redirect( preg_replace( '|[^a-z0-9-~+_.?#=&;,/:]|i', '', wp_get_referer( ) ) );
+    // In order to prevent the user from pressing the "Prizm Image" link multiple times while a reduce operation is in progress,
+    // when the link is pressed, we redirect to the bulk reduce page.  The attachement ID of the single image selected to reduce
+    // is passed to the bulk page.  This page will show the progress for this image and will contain a link allowing the user
+    // to return to the main Media page.  We also set the 'manualreduce' parameter to indicate that this is a manual operation, not 
+    // a bulk operation.
+    $ids = intval( $_GET['attachment_ID'] );
+    wp_redirect( add_query_arg( 'wp_image_service_nonce', wp_create_nonce( 'wp-image_service-bulk' ), admin_url( 'upload.php?page=wp-image_service-bulk&goback=1&manualrequest=1&ids=' . $ids ) ) );
+       
     exit();
+
+  // The commented code below was used when we did not redirect to the Bulk processing page.  It is left here in case we want to 
+  // go back to this method.
+ 
+    //$attachment_ID = intval( $_GET['attachment_ID'] );
+       
+    //$original_meta = wp_get_attachment_metadata( $attachment_ID );
+    
+    //$new_meta = $this->resize_from_meta_data( $original_meta, $attachment_ID );
+    
+    //if (WP_IMAGE_SERVICE_DEBUG) {   
+    //    echo "DEBUG: new_meta returned from resize_from_meta: data<pre>"; print_r($new_meta); echo "</pre>";
+    // }
+    
+    //wp_update_attachment_metadata( $attachment_ID, $new_meta ); 
+    
+    //wp_redirect( preg_replace( '|[^a-z0-9-~+_.?#=&;,/:]|i', '', wp_get_referer( ) ) );
+    //exit();
   }
   
   /**
@@ -466,6 +518,11 @@ class AccusoftImageService {
       $results_msg = sprintf( __("Reduced by %01.2f%% (%s)", WP_IMAGE_SERVICE_DOMAIN ),
               $percent_savings,
               $savings_str );
+      
+      // Update the cumulative number of bytes saved.
+      $totalSavings = get_option('WP_IMAGE_SERVICE_SPACE_SAVED');
+      $totalSavings = $totalSavings + $savings;     
+      update_option('WP_IMAGE_SERVICE_SPACE_SAVED', $totalSavings);
     }
 
     return $results_msg;
@@ -516,7 +573,7 @@ class AccusoftImageService {
 
     // Make sure a License Key has been configured.
     if ( !WP_IMAGE_SERVICE_USER_ID ) {
-      $meta['wp_image_service']  = __( "You have not configured a Prizm Image License Key.  Please enter your License Key in the Media Settings.", WP_IMAGE_SERVICE_DOMAIN );
+      $meta['wp_image_service']  = __( '<span style="color:#FF0000;">You have not configured a Prizm Image License Key.  Please enter your License Key in the Media Settings.</span>', WP_IMAGE_SERVICE_DOMAIN );
       return $meta;
     }
     
@@ -690,9 +747,15 @@ class AccusoftImageService {
   /**
    * Print column header for Prizm Image on the Media Page.  This results in the media library using
    * the `manage_media_columns` hook.
+   *
+   * The column header will display the cumulative number of bytes saved during the lifetime of the plugin.
    */
   function columns( $defaults ) {
-    $defaults['image_service'] = 'Prizm Image';
+    // The number of bytes saved is stored as an option.
+    // Get the raw number of bytes and convert to the best readable format (KB, MB, GB, etc.)
+    $bytesSaved = get_option('WP_IMAGE_SERVICE_SPACE_SAVED');
+    $savingsStr = $this->format_bytes( $bytesSaved, 1 );
+    $defaults['image_service'] = 'Prizm Image <br />Total Savings: ' . $savingsStr;
     return $defaults;
   }
   
@@ -703,24 +766,46 @@ class AccusoftImageService {
   function custom_column( $column_name, $id ) {
     if( 'image_service' == $column_name ) {
       $data = wp_get_attachment_metadata($id);
+      // Check if the file has already been processed.
       if ( isset( $data['wp_image_service'] ) && !empty( $data['wp_image_service'] ) ) {
         print $data['wp_image_service'];
         printf( "<br><a href=\"admin.php?action=wp_image_service_manual&amp;attachment_ID=%d\">%s</a>",
-             $id,
-             __( 'Rerun Prizm Image', WP_IMAGE_SERVICE_DOMAIN ) );
+              $id,
+              __( 'Rerun Prizm Image', WP_IMAGE_SERVICE_DOMAIN ) );
+        
       } else {
+        // This file has not been processed.  Make sure it is an image and that it is an image type handled by Prizm Image.
         if ( wp_attachment_is_image( $id ) ) {
-        print __( 'Not processed', WP_IMAGE_SERVICE_DOMAIN );
-        printf( "<br><a href=\"admin.php?action=wp_image_service_manual&amp;attachment_ID=%d\">%s</a>",
-             $id,
-             __('Run Prizm Image', WP_IMAGE_SERVICE_DOMAIN));
+          if ( $this->file_is_handled_by_image_service($id)) {
+            print __( 'Not processed', WP_IMAGE_SERVICE_DOMAIN );
+            printf( "<br><a href=\"admin.php?action=wp_image_service_manual&amp;attachment_ID=%d\">%s</a>",
+              $id,
+              __('Run Prizm Image', WP_IMAGE_SERVICE_DOMAIN));
+          } else {
+            print __( 'File type not handled by Prizm Image', WP_IMAGE_SERVICE_DOMAIN );
+          }
+        } else {
+            print __( 'File type not handled by Prizm Image', WP_IMAGE_SERVICE_DOMAIN );
         }
       }
     }
   }
+  
+  // Determine if the image type is handled by Prizm Image.
+  // Currently we handle JPG, PNG, and GIF.
+  function file_is_handled_by_image_service( $id) {
+    $filePath = get_attached_file($id);
+    $fileType = wp_check_filetype($filePath);
+    if ( $fileType['ext'] ===  'jpg' || $fileType['ext'] ===  'png' || $fileType['ext'] ===  'gif' ) {
+      return true;
+    } else {
+      return false;
+    }
+  }
 
   // Borrowed from http://www.viper007bond.com/wordpress-plugins/regenerate-thumbnails/
-  function add_bulk_actions_via_javascript() { ?>
+  function add_bulk_actions_via_javascript() { 
+  ?>
     <script type="text/javascript">
       jQuery(document).ready(function($){
         $('select[name^="action"] option:last-child').before('<option value="bulk_image_service">Bulk Prizm Image</option>');
@@ -743,7 +828,6 @@ class AccusoftImageService {
     wp_redirect( add_query_arg( 'wp_image_service_nonce', wp_create_nonce( 'wp-image_service-bulk' ), admin_url( 'upload.php?page=wp-image_service-bulk&goback=1&ids=' . $ids ) ) );
     exit();
   }
-  
 }
 
 $WpImageService = new AccusoftImageService();

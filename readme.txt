@@ -1,13 +1,13 @@
 === Prizm Image ===
 Plugin Name: Prizm Image
-Version: 2.1
+Version: 2.2
 Author: Accusoft
 Contributors: Accusoft
 Author URI: http://www.accusoft.com
 Tags: images, image, attachments, attachment, jpeg, png, Prizm Image, smushit, performance
 Requires at least: 3.5
-Tested up to: 3.7
-Stable tag: 2.1
+Tested up to: 3.8
+Stable tag: 2.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -18,13 +18,15 @@ The Prizm Image plugin lets you reduce the file size of your images by up to 70%
 
 Google (and many other web experts) recommend optimizing web images to [improve website performance](https://developers.google.com/speed/docs/best-practices/payload#CompressImages).  Google has even gone so far as to include web [site speed as part of their search ranking](http://googlewebmastercentral.blogspot.com/2010/04/using-site-speed-in-web-search-ranking.html) algorithm.  
 
-The Prizm Image plugin helps to achieve web site performance by optimizing images while maintaining resolution and visual quality.  Compare our output to the popular Smush.It Plugin and you will see significant reduction in image sizes.
+The Prizm Image plugin helps to achieve web site performance by optimizing images while maintaining resolution and visual quality.  Compare our output to the popular Smush.It Plugin and you will see significant reduction in image sizes.  Also, Prizm Image has no size limit on the files that can submitted for reduction.
 
 This plugin integrates with the [Prizm Image](http://www.PrizmImage.com) API to optimize images for a WordPress website. It provides customizable options to do the following:
 
 * Optimize JPEG compression
 * Strip metadata from all JPEGs (except for copyrights)
+* Convert between Progressive JPEGs and Sequential JPEGs
 * Optimize PNGs
+* Optimze GIFs
 
 = User Registration =
 
@@ -81,6 +83,11 @@ Configure the plugin options in the Settings > Media tab as follows:
 
 
 == Changelog ==
+
+= 2.2 =
+* Added support for reducing GIF files
+* Added a running total of the number of bytes saved
+* Improved efficiency by ensuring that unsupported file types are not sent to the Prizm Image service
 
 = 2.1 =
 * Fix checking of License Key
