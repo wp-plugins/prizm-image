@@ -1,10 +1,10 @@
 <?php
 /*
 Plugin Name: Prizm Image
-Plugin URI: http://wordpress.org/extend/plugins/wp-prizmimage/
+Plugin URI: http://wordpress.org/plugins/prizm-image/
 Description: Prizm Image can be used to significantly reduce the size of your image files, leading to improved performance. Files are reduced without any loss of visual quality.
 Author: Accusoft
-Version: 2.2
+Version: 2.3
 License: GPL2
 Author URI: http://www.accusoft.com/
 Textdomain: PrizmImage
@@ -35,7 +35,7 @@ if ( !class_exists( 'AccusoftImageService' ) ) {
 
 class AccusoftImageService {
 
-  var $version = "2.2";
+  var $version = "2.3";
   
   /**
      * Constructor
@@ -400,10 +400,13 @@ class AccusoftImageService {
         _e('<hr /></p>Prizm Image finished processing.</p>', WP_IMAGE_SERVICE_DOMAIN);
         _e('</p>Cumulative Total Savings: '.$savingsStr .'</p>', WP_IMAGE_SERVICE_DOMAIN);
         
-        //Determine if there should be a link to go back to the previous page.
-        // Go back a single image was selected from the Media page to reduce.  In this case 'goback' will be set.
-        $text_goback = ( ! empty( $_GET['goback'] ) ) ? sprintf( __( '<strong>To go back to the previous page, <a href="%s">click here</a>.</strong>', 'regenerate-thumbnails' ), 'javascript:history.go(-1)' ) : '';
-         _e('</p>' .$text_goback .'</p>', WP_IMAGE_SERVICE_DOMAIN);
+        // Determine if there should be a link to go back to the previous page.
+        // Go back if a single image was selected from the Media page to reduce.  In this case 'goback' will be set.
+        // Use wp_get_referer() to obtain the link of the previous page and then set this link as the target of the <a> tag.
+        // This will force the page to which we are returning to reload.  Otherwise, in Chrome, just going back to a page will not
+        // cause the page to reload.
+        $text_goback = ( ! empty( $_GET['goback'] ) ) ? sprintf( __( '<strong>To go back to the previous page, <a href="%s">click here</a>.</strong>', WP_IMAGE_SERVICE_DOMAIN), wp_get_referer()) : '';
+        _e('</p>' .$text_goback .'</p>', WP_IMAGE_SERVICE_DOMAIN);
       }
     }
     ?>
