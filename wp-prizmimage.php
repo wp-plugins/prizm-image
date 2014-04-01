@@ -4,7 +4,7 @@ Plugin Name: Prizm Image
 Plugin URI: http://wordpress.org/plugins/prizm-image/
 Description: Prizm Image can be used to significantly reduce the size of your image files, leading to improved performance. Files are reduced without any loss of visual quality.
 Author: Accusoft
-Version: 2.3
+Version: 2.4
 License: GPL2
 Author URI: http://www.accusoft.com/
 Textdomain: PrizmImage
@@ -35,7 +35,7 @@ if ( !class_exists( 'AccusoftImageService' ) ) {
 
 class AccusoftImageService {
 
-  var $version = "2.3";
+  var $version = "2.4";
   
   /**
      * Constructor
@@ -799,7 +799,7 @@ class AccusoftImageService {
   function file_is_handled_by_image_service( $id) {
     $filePath = get_attached_file($id);
     $fileType = wp_check_filetype($filePath);
-    if ( $fileType['ext'] ===  'jpg' || $fileType['ext'] ===  'png' || $fileType['ext'] ===  'gif' ) {
+    if ( $fileType['ext'] ===  'jpg' || $fileType['ext'] ===  'jpeg' || $fileType['ext'] ===  'png' || $fileType['ext'] ===  'gif' ) {
       return true;
     } else {
       return false;
