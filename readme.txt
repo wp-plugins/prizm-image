@@ -1,13 +1,13 @@
 === Prizm Image ===
 Plugin Name: Prizm Image
-Version: 2.3
+Version: 2.4
 Author: Accusoft
 Contributors: Accusoft
 Author URI: http://www.accusoft.com
 Tags: images, image, attachments, attachment, jpeg, png, Prizm Image, smushit, performance
 Requires at least: 3.5
 Tested up to: 3.8
-Stable tag: 2.3
+Stable tag: 2.4
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -83,6 +83,9 @@ Configure the plugin options in the Settings > Media tab as follows:
 
 
 == Changelog ==
+
+= 2.4 =
+* JPEG files that had a file extension of ".jpeg" were not identified as file types that the plugin could process.  Fixed so that these files are processed.
 
 = 2.3 =
 * Provided fix for feature in Chrome browser in which going back to previous screen did not refresh the previous screen.
