@@ -66,6 +66,10 @@ Configure the plugin options in the Settings > Media tab as follows:
   * Select to display additional troubleshooting information
   * Deselect to not display additional troubleshooting information (default)
 
+= Restrictions = 
+
+Prizm Image does not accept filenames that contain the character '+'.
+If a file with a filename containing '+' is attempted to be reduced, the Prizm Image service will return an error.
 
 == Screenshots ==
 
