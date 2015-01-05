@@ -6,7 +6,7 @@ Contributors: Accusoft
 Author URI: http://www.accusoft.com
 Tags: images, image, attachments, attachment, jpeg, png, Prizm Image, smushit, performance
 Requires at least: 3.5
-Tested up to: 3.8
+Tested up to: 4.1
 Stable tag: 2.4
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
